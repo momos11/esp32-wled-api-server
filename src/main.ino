@@ -20,7 +20,7 @@ String colorLeft = "";
 String colorRight = "";
 String toggleState = "";
 String brightness = "";
-int rgb [3] = {};
+int rgb[3] = {};
 unsigned long previousMillis = 0; // will store last time LED was updated
 long OnTime = 250;                // milliseconds of on-time
 long OffTime = 750;               // milliseconds of off-time
@@ -33,7 +33,10 @@ enum pattern {
     COLOR_WIPE,
     SCANNER,
     FADE,
-    STATIC
+    STATIC,
+    FADE_HORIZONTAL,
+    TWINKLE,
+    METEOR
 };
 // Patern directions supported:
 enum direction {
@@ -87,6 +90,15 @@ public:
                     break;
                 case STATIC:
                     StaticUpdate();
+                    break;
+                case METEOR:
+                    MeteorUpdate();
+                    break;
+                case FADE_HORIZONTAL:
+                    FadeHorizontalUpdate();
+                    break;
+                case TWINKLE:
+                    TwinkleUpdate();
                     break;
                 default:
                     break;
@@ -213,8 +225,6 @@ public:
         Color2 = color2;
         Index = 0;
         Direction = dir;
-        Serial.println(color1);
-        Serial.println(color2);
     }
 
     // Update the Fade Pattern
@@ -238,6 +248,105 @@ public:
     void StaticUpdate() {
         ColorSet(Color1);
         show();
+    }
+
+    void FadeHorizontal(uint32_t color1, uint32_t color2, uint16_t steps, uint8_t interval, direction dir = FORWARD) {
+        ActivePattern = FADE_HORIZONTAL;
+        Interval = interval;
+        TotalSteps = steps;
+        Color1 = color1;
+        Color2 = color2;
+        Index = 0;
+        Direction = dir;
+    }
+
+    void FadeHorizontalUpdate() {
+        uint8_t red = ((Red(Color1) * (TotalSteps - Index)) + (Red(Color2) * Index)) / TotalSteps;
+        uint8_t green = ((Green(Color1) * (TotalSteps - Index)) + (Green(Color2) * Index)) / TotalSteps;
+        uint8_t blue = ((Blue(Color1) * (TotalSteps - Index)) + (Blue(Color2) * Index)) / TotalSteps;
+
+        for (int i = 0; i < NUMPIXELS; i++) {
+            setPixelColor(i, Color(red,green,blue));
+            show();
+        }
+
+        //ColorSet(Color(red, green, blue));
+        show();
+        Increment();
+    }
+
+    void Twinkle(uint32_t color1, uint8_t interval) {
+        ActivePattern = TWINKLE;
+        Interval = interval;
+        Color1 = color1;
+        Index = 0;
+    }
+
+    void TwinkleUpdate() {
+        ColorSet(Color2);
+
+        for (int i = 0; i < 10; i++) {
+            setPixelColor(random(NUMPIXELS), Color1);
+            show();
+        }
+
+        show();
+        Increment();
+    }
+
+
+    void Meteor(uint32_t color1, uint8_t interval) {
+        ActivePattern = METEOR;
+        Interval = interval;
+        Color1 = color1;
+        Index = 0;
+    }
+
+    void MeteorUpdate() {
+        byte meteorSize = 20;
+        byte meteorTrailDecay = 10;
+        boolean meteorRandomDecay = false;
+        ColorSet(0);
+
+        for (int i = 0; i < NUMPIXELS + NUMPIXELS; i++) {
+
+            for (int j = 0; j < NUMPIXELS; j++) {
+                if ((!meteorRandomDecay) || (random(10) > 5)) {
+                    fadeToBlack(j, meteorTrailDecay);
+                }
+            }
+
+            // draw meteor
+            for (int j = 0; j < meteorSize; j++) {
+                if ((i - j < NUMPIXELS) && (i - j >= 0)) {
+                    setPixelColor(i - j, Color1);
+                }
+            }
+            show();
+        }
+
+        show();
+        Increment();
+    }
+
+    void fadeToBlack(int ledNo, byte fadeValue) {
+        uint32_t oldColor;
+        uint8_t r, g, b;
+
+        oldColor = getPixelColor(ledNo);
+        r = (oldColor & 0x00ff0000UL) >> 16;
+        g = (oldColor & 0x0000ff00UL) >> 8;
+        b = (oldColor & 0x000000ffUL);
+
+        r = (r <= 10) ? 0 : (int) r - (r * fadeValue / 256);
+        g = (g <= 10) ? 0 : (int) g - (g * fadeValue / 256);
+        b = (b <= 10) ? 0 : (int) b - (b * fadeValue / 256);
+
+        setPixelColor(ledNo, r, g, b);
+
+        setPixelColor(ledNo, DimColor(oldColor));
+        //leds[ledNo].fadeToBlackBy( fadeValue );
+
     }
 
     // Returns the Red component of a 32-bit color
@@ -321,9 +430,8 @@ void setCrossOrigin() {
     server.sendHeader(F("Access-Control-Allow-Headers"), F("*"));
 };
 
-int* colorConverter(String hexString)
-{
-    unsigned int hexValue = (int) strtol( &hexString[1], NULL, 16);
+int *colorConverter(String hexString) {
+    unsigned int hexValue = (int) strtol(&hexString[1], NULL, 16);
     Serial.println(hexValue);
     int red = hexValue >> 16;
     int green = hexValue >> 8 & 0xFF;
@@ -376,6 +484,20 @@ void handlePattern() {
 
     if (ledMode == "COLORWIPE") {
         changeActivepattern(COLOR_WIPE);
+    }
+
+    if (ledMode == "METEOR") {
+        changeActivepattern(METEOR);
+    }
+
+    if (ledMode == "TWINKLE") {
+        changeActivepattern(TWINKLE);
+    }
+
+    if (ledMode == "FADE_HORIZONTAL") {
+        Strip.Interval = 10;
+        Strip.TotalSteps = 255;
+        changeActivepattern(FADE_HORIZONTAL);
     }
 
     if (ledMode == "COLOR") {
