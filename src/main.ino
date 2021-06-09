@@ -4,29 +4,29 @@
 #include <ArduinoJson.h>
 #include <string>
 #include <WS2812FX.h>
+#include <iostream>
+#include <sstream>
 
 #define LEDPIN 12
 #define NUMPIXELS 60
-#define TIMER_MS 5000
+#define TIMER_MS 500
 
 const char *ssid = "57Dps3P";
 const char *password = "3p7SD#m$87sa5k?=7HG";
 WebServer server(80);
-String lastState = "";
-int ledState = HIGH;
-String ledMode = "";
+int ledMode = 0;
+int speed = 0;
+int brightness = 0;
 String colorString = "";
 String side = "";
 String colorLeft = "";
 String colorRight = "";
 String toggleState = "";
-String brightness = "";
 int rgb[3] = {};
 unsigned long last_change = 0;
 unsigned long now = 0;
 
-WS2812FX ws2812fx = WS2812FX(NUMPIXELS, LEDPIN, NEO_RGB + NEO_KHZ800);
-
+WS2812FX ws2812fx = WS2812FX(NUMPIXELS, LEDPIN, NEO_GRB + NEO_KHZ800);
 
 void setCrossOrigin() {
     server.sendHeader(F("Access-Control-Allow-Origin"), F("*"));
@@ -51,52 +51,99 @@ int *colorConverter(String hexString) {
     return rgb;
 }
 
-void handlePattern() {
-
-    if (ledMode == "RAINBOW") {
-        Serial.println("RAINBOW");
-        ws2812fx.setMode(FX_MODE_RAINBOW_CYCLE);
-    }
-
-
-    if (ledMode == "COLOR") {
-        Serial.println(colorString);
-        Serial.println(side);
-
-        colorConverter(colorString);
-
-        if (side == "color1") {
-
-        }
-
-        if (side == "color2") {
-
-        }
-    }
-}
-
-
-void handleSubmit() { //Handler for the body path
-    if (!server.hasArg("plain")) { //Check if body received
+void handleMode(){
+    if (!server.hasArg("plain")) {
 
         server.send(200, "text/plain", "Body not received");
         return;
     }
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, server.arg("plain"));
-    ledMode = doc["ledMode"].as<String>();
-    colorString = doc["color"].as<String>();
-    side = doc["side"].as<String>();
-    brightness = doc["brightness"].as<String>();
-    String message = ledMode;
-    Serial.println(ledMode);
-    handlePattern();
-
-    server.send(200, "text/plain", message);
+    ledMode = doc["ledMode"].as<int>();
+    Serial.println(ws2812fx.getMode(ledMode));
+    server.send(200, "text/plain", (String) ledMode);
+    ws2812fx.setMode(ledMode);
 }
 
-void handleGet() {
+void handleBrightness(){
+    if (!server.hasArg("plain")) {
 
+        server.send(200, "text/plain", "Body not received");
+        return;
+    }
+    DynamicJsonDocument doc(1024);
+    deserializeJson(doc, server.arg("plain"));
+    brightness = doc["brightness"].as<int>();
+    server.send(200, "text/plain", (String) brightness);
+    ws2812fx.setBrightness(brightness);
+}
+
+void handleSpeed() {
+    if (!server.hasArg("plain")) {
+
+        server.send(200, "text/plain", "Body not received");
+        return;
+    }
+    DynamicJsonDocument doc(1024);
+    deserializeJson(doc, server.arg("plain"));
+    speed = doc["speed"].as<int>();
+    server.send(200, "text/plain", (String) speed);
+    ws2812fx.setSpeed(speed);
+}
+
+void handleColor() {
+    if (!server.hasArg("plain")) {
+
+        server.send(200, "text/plain", "Body not received");
+        return;
+    }
+    DynamicJsonDocument doc(1024);
+    deserializeJson(doc, server.arg("plain"));
+    colorLeft = doc["colorSide"].as<String>();
+    colorString = doc["color"].as<String>();
+    server.send(200, "text/plain", colorString);
+    std::string s(&colorString[1]);
+    uint32_t value;
+    std::istringstream iss(s);
+    iss >> std::hex >> value;
+    ws2812fx.setColor(value);
+}
+
+void handleRightColor() {
+    if (!server.hasArg("plain")) {
+
+        server.send(200, "text/plain", "Body not received");
+        return;
+    }
+    DynamicJsonDocument doc(1024);
+    deserializeJson(doc, server.arg("plain"));
+    colorRight = doc["colorSide"].as<String>();
+    colorString = doc["color"].as<String>();
+    server.send(200, "text/plain", colorString);
+    uint32_t hexValueLeft = (uint32_t) strtol(&colorLeft[1], NULL, 16);
+    uint32_t hexValueRight = (uint32_t) strtol(&colorString[1], NULL, 16);
+    uint32_t colors [2] = {hexValueLeft, hexValueRight};
+    ws2812fx.setColors(0,colors);
+}
+
+void handleToggle() {
+    if (!server.hasArg("plain")) {
+
+        server.send(200, "text/plain", "Body not received");
+        return;
+    }
+    DynamicJsonDocument doc(1024);
+    deserializeJson(doc, server.arg("plain"));
+    toggleState = doc["toggleState"].as<String>();
+    server.send(200, "text/plain", toggleState);
+
+    if (toggleState.equals("OFF")) {
+        ws2812fx.stop();
+    }
+    if (toggleState.equals("ON")){
+        ws2812fx.start();
+        ws2812fx.setMode(ledMode);
+    }
 }
 
 void wifiConnect() {
@@ -116,6 +163,15 @@ void wifiConnect() {
 }
 
 
+void serverInit(){
+    server.on("/ledMode", HTTP_POST, handleMode);
+    server.on("/brightness", HTTP_POST, handleBrightness);
+    server.on("/speed", HTTP_POST, handleSpeed);
+    server.on("/color", HTTP_POST, handleColor);
+    server.on("/colorRight", HTTP_POST, handleRightColor);
+    server.on("/toggle", HTTP_POST, handleToggle);
+}
+
 
 void setup() {
     Serial.begin(115200);
@@ -128,8 +184,7 @@ void setup() {
 
     wifiConnect();
 
-    server.on("/submit", HTTP_POST, handleSubmit);
-    server.on("/get", HTTP_POST, handleGet);
+    serverInit();
 
     server.begin();
     ws2812fx.init();
@@ -142,13 +197,8 @@ void setup() {
 
 void loop() {
     server.handleClient();
-    now = millis();
-
-    ws2812fx.setSpeed(4000);
     ws2812fx.service();
-
-    if(now - last_change > TIMER_MS) {
-        ws2812fx.setMode((ws2812fx.getMode() + 1) % ws2812fx.getModeCount());
+    if(millis() - last_change > TIMER_MS) {
         last_change = now;
     }
 }
