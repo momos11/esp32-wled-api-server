@@ -1,204 +1,288 @@
-#include <WiFi.h>
-#include <WebServer.h>
+// Default Arduino includes
 #include <Arduino.h>
+#include <WiFi.h>
+#include <nvs.h>
+#include <nvs_flash.h>
+
+// Includes for JSON object handling
+// Requires ArduinoJson library
+// https://arduinojson.org
+// https://github.com/bblanchon/ArduinoJson
 #include <ArduinoJson.h>
-#include <string>
-#include <WS2812FX.h>
-#include <iostream>
-#include <sstream>
+#include <stdlib.h>
+#include <string.h>
+#include <base64encode.h>
+// Includes for BLE
+#include <BLEUtils.h>
+#include <BLEServer.h>
+#include <BLEDevice.h>
+#include <BLEAdvertising.h>
+#include <Preferences.h>
 
-#define LEDPIN 12
-#define NUMPIXELS 60
-#define TIMER_MS 500
+/** Build time */
+const char compileDate[] = __DATE__ " " __TIME__;
 
-const char *ssid = "57Dps3P";
-const char *password = "3p7SD#m$87sa5k?=7HG";
-WebServer server(80);
-int ledMode = 0;
-int speed = 0;
-int brightness = 0;
-String colorString = "";
-String side = "";
-String colorLeft = "";
-String colorRight = "";
-String toggleState = "";
-int rgb[3] = {};
-unsigned long last_change = 0;
-unsigned long now = 0;
+/** Unique device name */
+char apName[] = "LED-Strip";
+/** Selected network
+    true = use primary network
+		false = use secondary network
+*/
+bool usePrimAP = true;
+/** Flag if stored AP credentials are available */
+bool hasCredentials = false;
+/** Connection status */
+volatile bool isConnected = false;
+/** Connection change status */
+bool connectionStatusChanged = false;
 
-WS2812FX ws2812fx = WS2812FX(NUMPIXELS, LEDPIN, NEO_GRB + NEO_KHZ800);
+/**
+ * Create unique device name from MAC address
+ **/
+void createName() {
+    uint8_t baseMac[6];
+    // Get MAC address for WiFi station
+    esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
+    // Write unique name into apName
+    sprintf(apName, "LED-Strip-%02X%02X%02X%02X%02X%02X", baseMac[0], baseMac[1], baseMac[2], baseMac[3], baseMac[4],
+            baseMac[5]);
+}
 
-void setCrossOrigin() {
-    server.sendHeader(F("Access-Control-Allow-Origin"), F("*"));
-    server.sendHeader(F("Access-Control-Max-Age"), F("600"));
-    server.sendHeader(F("Access-Control-Allow-Methods"), F("PUT,POST,GET,OPTIONS"));
-    server.sendHeader(F("Access-Control-Allow-Headers"), F("*"));
+// List of Service and Characteristic UUIDs
+#define SERVICE_UUID  "f9c521f6-0f14-4499-8f76-43116b40007d"
+#define WIFI_UUID     "23456f8d-4aa7-4a61-956b-39c9bce0ff00"
+
+/** SSIDs of local WiFi networks */
+String ssid;
+/** Password for local WiFi network */
+String password;
+
+/** Characteristic for digital output */
+BLECharacteristic *pCharacteristicWiFi;
+/** BLE Advertiser */
+BLEAdvertising *pAdvertising;
+/** BLE Service */
+BLEService *pService;
+/** BLE Server */
+BLEServer *pServer;
+
+/** Buffer for JSON string */
+// MAx size is 51 bytes for frame:
+// {"ssid":"","password":"","ssidSec":"","pwSec":""}
+// + 4 x 32 bytes for 2 SSID's and 2 passwords
+StaticJsonDocument<100> jsonBuffer;
+
+/**
+ * MyServerCallbacks
+ * Callbacks for client connection and disconnection
+ */
+class MyServerCallbacks : public BLEServerCallbacks {
+    void onConnect(BLEServer *pServer) {
+        Serial.println("BLE client connected");
+    };
+
+    void onDisconnect(BLEServer *pServer) {
+        Serial.println("BLE client disconnected");
+        pAdvertising->start();
+    }
 };
 
-int *colorConverter(String hexString) {
-    unsigned int hexValue = (int) strtol(&hexString[1], NULL, 16);
-    Serial.println(hexValue);
-    int red = hexValue >> 16;
-    int green = hexValue >> 8 & 0xFF;
-    int blue = hexValue & 0xFF;
+/**
+ * MyCallbackHandler
+ * Callbacks for BLE client read/write requests
+ */
+class MyCallbackHandler : public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pCharacteristic) {
+        std::string value = pCharacteristic->getValue();
+        if (value.length() == 0) {
+            return;
+        }
+        Serial.println("Received over BLE: " + String((char *) &value[0]));
 
-    rgb[0] = red;
-    rgb[1] = green;
-    rgb[2] = blue;
-    Serial.println(red);
-    Serial.println(green);
-    Serial.println(blue);
-    return rgb;
+        /** Json object for incoming data */
+        StaticJsonDocument<256> jsonIn;
+        deserializeJson(jsonIn, String((char *) &value[0]));
+        ssid = jsonIn["ssid"].as<String>();
+        password = jsonIn["password"].as<String>();
+
+        Preferences preferences;
+        preferences.begin("WiFiCred", false);
+        preferences.putString("ssid", ssid);
+        preferences.putString("password", password);
+        preferences.putBool("valid", true);
+        preferences.end();
+
+        Serial.println("Received over bluetooth:");
+        Serial.println("primary SSID: " + ssid + " password: " + password);
+        connectionStatusChanged = true;
+        hasCredentials = true;
+//        } else if (jsonIn.containsKey("erase")) {
+//            Serial.println("Received erase command");
+//            Preferences preferences;
+//            preferences.begin("WiFiCred", false);
+//            preferences.clear();
+//            preferences.end();
+//            connectionStatusChanged = true;
+//            hasCredentials = false;
+//            ssid = "";
+//            password = "";
+//
+//            int err;
+//            err = nvs_flash_init();
+//            Serial.println(&"nvs_flash_init: "[err]);
+//            err = nvs_flash_erase();
+//            Serial.println(&"nvs_flash_erase: "[err]);
+//        } else if (jsonIn.containsKey("reset")) {
+//            WiFi.disconnect();
+//            esp_restart();
+//        }
+
+        jsonBuffer.clear();
+    };
+
+    void onRead(BLECharacteristic *pCharacteristic) {
+        Serial.println("BLE onRead request");
+        String credentials;
+
+        /** Json object for outgoing data */
+        StaticJsonDocument<50> jsonOut;
+        jsonOut["ssid"] = ssid;
+        jsonOut["password"] = password;
+        // Convert JSON object into a string
+        serializeJson(jsonOut, credentials);
+
+        String ipAdress = WiFi.localIP().toString();
+        std::string stdSTring = (ipAdress.c_str());
+        pCharacteristicWiFi->setValue(stdSTring);
+        jsonBuffer.clear();
+    }
+};
+
+/**
+ * initBLE
+ * Initialize BLE service and characteristic
+ * Start BLE server and service advertising
+ */
+void initBLE() {
+    // Initialize BLE and set output power
+    BLEDevice::init(apName);
+    BLEDevice::setPower(ESP_PWR_LVL_P7);
+
+    // Create BLE Server
+    pServer = BLEDevice::createServer();
+
+    // Set server callbacks
+    pServer->setCallbacks(new MyServerCallbacks());
+
+    // Create BLE Service
+    pService = pServer->createService(BLEUUID(SERVICE_UUID), 20);
+
+    // Create BLE Characteristic for WiFi settings
+    pCharacteristicWiFi = pService->createCharacteristic(
+            BLEUUID(WIFI_UUID),
+            // WIFI_UUID,
+            BLECharacteristic::PROPERTY_READ |
+            BLECharacteristic::PROPERTY_WRITE
+    );
+    pCharacteristicWiFi->setCallbacks(new MyCallbackHandler());
+
+    // Start the service
+    pService->start();
+
+    // Start advertising
+    pAdvertising = pServer->getAdvertising();
+    pAdvertising->start();
 }
 
-void handleMode(){
-    if (!server.hasArg("plain")) {
-
-        server.send(200, "text/plain", "Body not received");
-        return;
-    }
-    DynamicJsonDocument doc(1024);
-    deserializeJson(doc, server.arg("plain"));
-    ledMode = doc["ledMode"].as<int>();
-    Serial.println(ws2812fx.getMode(ledMode));
-    server.send(200, "text/plain", (String) ledMode);
-    ws2812fx.setMode(ledMode);
+/** Callback for receiving IP address from AP */
+void gotIP(system_event_id_t event) {
+    isConnected = true;
+    connectionStatusChanged = true;
 }
 
-void handleBrightness(){
-    if (!server.hasArg("plain")) {
-
-        server.send(200, "text/plain", "Body not received");
-        return;
-    }
-    DynamicJsonDocument doc(1024);
-    deserializeJson(doc, server.arg("plain"));
-    brightness = doc["brightness"].as<int>();
-    server.send(200, "text/plain", (String) brightness);
-    ws2812fx.setBrightness(brightness);
+/** Callback for connection loss */
+void lostCon(system_event_id_t event) {
+    isConnected = false;
+    connectionStatusChanged = true;
 }
 
-void handleSpeed() {
-    if (!server.hasArg("plain")) {
+/**
+ * Start connection to AP
+ */
+void connectWiFi() {
+    // Setup callback function for successful connection
+    WiFi.onEvent(gotIP, SYSTEM_EVENT_STA_GOT_IP);
+    // Setup callback function for lost connection
+    WiFi.onEvent(lostCon, SYSTEM_EVENT_STA_DISCONNECTED);
 
-        server.send(200, "text/plain", "Body not received");
-        return;
-    }
-    DynamicJsonDocument doc(1024);
-    deserializeJson(doc, server.arg("plain"));
-    speed = doc["speed"].as<int>();
-    server.send(200, "text/plain", (String) speed);
-    ws2812fx.setSpeed(speed);
-}
+    WiFi.disconnect(true);
+    WiFi.enableSTA(true);
+    WiFi.mode(WIFI_STA);
 
-void handleColor() {
-    if (!server.hasArg("plain")) {
-
-        server.send(200, "text/plain", "Body not received");
-        return;
-    }
-    DynamicJsonDocument doc(1024);
-    deserializeJson(doc, server.arg("plain"));
-    colorLeft = doc["colorSide"].as<String>();
-    colorString = doc["color"].as<String>();
-    server.send(200, "text/plain", colorString);
-    std::string s(&colorString[1]);
-    uint32_t value;
-    std::istringstream iss(s);
-    iss >> std::hex >> value;
-    ws2812fx.setColor(value);
-}
-
-void handleRightColor() {
-    if (!server.hasArg("plain")) {
-
-        server.send(200, "text/plain", "Body not received");
-        return;
-    }
-    DynamicJsonDocument doc(1024);
-    deserializeJson(doc, server.arg("plain"));
-    colorRight = doc["colorSide"].as<String>();
-    colorString = doc["color"].as<String>();
-    server.send(200, "text/plain", colorString);
-    uint32_t hexValueLeft = (uint32_t) strtol(&colorLeft[1], NULL, 16);
-    uint32_t hexValueRight = (uint32_t) strtol(&colorString[1], NULL, 16);
-    uint32_t colors [2] = {hexValueLeft, hexValueRight};
-    ws2812fx.setColors(0,colors);
-}
-
-void handleToggle() {
-    if (!server.hasArg("plain")) {
-
-        server.send(200, "text/plain", "Body not received");
-        return;
-    }
-    DynamicJsonDocument doc(1024);
-    deserializeJson(doc, server.arg("plain"));
-    toggleState = doc["toggleState"].as<String>();
-    server.send(200, "text/plain", toggleState);
-
-    if (toggleState.equals("OFF")) {
-        ws2812fx.stop();
-    }
-    if (toggleState.equals("ON")){
-        ws2812fx.start();
-        ws2812fx.setMode(ledMode);
+    Serial.println();
+    Serial.print("Start connection to ");
+    if (usePrimAP) {
+        Serial.println(ssid);
+        WiFi.begin(ssid.c_str(), password.c_str());
     }
 }
-
-void wifiConnect() {
-    WiFi.begin(ssid, password); // Connect to the network
-    Serial.print("Connecting to ");
-    Serial.print(ssid);
-    Serial.println(" ...");
-    while (WiFi.status() != WL_CONNECTED) { // Wait for the Wi-Fi to connect
-        delay(2000);
-        Serial.print(WiFi.status());
-        Serial.print('\n');
-    }
-    Serial.println('\n');
-    Serial.println("Connection established!");
-    Serial.print("IP address:\t");
-    Serial.println(WiFi.localIP());
-}
-
-
-void serverInit(){
-    server.on("/ledMode", HTTP_POST, handleMode);
-    server.on("/brightness", HTTP_POST, handleBrightness);
-    server.on("/speed", HTTP_POST, handleSpeed);
-    server.on("/color", HTTP_POST, handleColor);
-    server.on("/colorRight", HTTP_POST, handleRightColor);
-    server.on("/toggle", HTTP_POST, handleToggle);
-}
-
 
 void setup() {
+    // Create unique device name
+    createName();
+
+    // Initialize Serial port
     Serial.begin(115200);
+    // Send some device info
+    Serial.print("Build: ");
+    Serial.println(compileDate);
 
-    pinMode(LEDPIN, OUTPUT);
-    digitalWrite(LEDPIN, LOW);
+    Preferences preferences;
+    preferences.begin("WiFiCred", false);
+    bool hasPref = preferences.getBool("valid", false);
+    if (hasPref) {
+        ssid = preferences.getString("ssid", "");
+        password = preferences.getString("password", "");
+        if (ssid.equals("")
+            || password.equals("")) {
+            Serial.println("Found preferences but credentials are invalid");
+        } else {
+            Serial.println("Read from preferences:");
+            Serial.println("primary SSID: " + ssid + " password: " + password);
+            hasCredentials = true;
+        }
+    } else {
+        Serial.println("Could not find preferences, need send data over BLE");
+    }
+    preferences.end();
 
-    delay(10);
-    Serial.println('\n');
+    // Start BLE server
+    initBLE();
 
-    wifiConnect();
-
-    serverInit();
-
-    server.begin();
-    ws2812fx.init();
-    ws2812fx.setBrightness(255);
-    ws2812fx.setSpeed(1000);
-    ws2812fx.setColor(0x007BFF);
-    ws2812fx.setMode(FX_MODE_RAINBOW_CYCLE);
-    ws2812fx.start();
+    if (hasCredentials) {
+        // Check for available AP's
+        // If AP was found, start connection
+        connectWiFi();
+    }
 }
 
 void loop() {
-    server.handleClient();
-    ws2812fx.service();
-    if(millis() - last_change > TIMER_MS) {
-        last_change = now;
+    if (connectionStatusChanged) {
+        if (isConnected) {
+            Serial.print("Connected to AP: ");
+            Serial.print(WiFi.SSID());
+            Serial.print(" with IP: ");
+            Serial.print(WiFi.localIP());
+            Serial.print(" RSSI: ");
+            Serial.println(WiFi.RSSI());
+        } else {
+            if (hasCredentials) {
+                Serial.println("Lost WiFi connection");
+                // Received WiFi credentials
+                // If AP was found, start connection
+                connectWiFi();
+            }
+        }
+        connectionStatusChanged = false;
     }
 }
