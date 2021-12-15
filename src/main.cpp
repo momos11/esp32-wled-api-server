@@ -6,7 +6,8 @@
 #include <WS2812FX.h>
 #include <iostream>
 #include <sstream>
-
+#include "wlan_setup.h"
+#include <nvs.h>
 #define LEDPIN 12
 #define NUMPIXELS 60
 #define TIMER_MS 500
@@ -173,16 +174,15 @@ void serverInit(){
 }
 
 
-void setup2() {
-    Serial.begin(115200);
+void setup() {
+    //connects to WLAN if credentials are stored
+    setupWlan();
 
     pinMode(LEDPIN, OUTPUT);
     digitalWrite(LEDPIN, LOW);
 
     delay(10);
     Serial.println('\n');
-
-    wifiConnect();
 
     serverInit();
 
@@ -193,9 +193,10 @@ void setup2() {
     ws2812fx.setColor(0x007BFF);
     ws2812fx.setMode(FX_MODE_RAINBOW_CYCLE);
     ws2812fx.start();
+    Serial.println("LED started");
 }
 
-void loop2() {
+void loop() {
     server.handleClient();
     ws2812fx.service();
     if(millis() - last_change > TIMER_MS) {

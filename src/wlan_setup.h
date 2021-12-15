@@ -1,0 +1,8 @@
+//
+// Created by mauri on 14.12.2021.
+//
+
+#ifndef ESP32_WLED_API_SERVER_WLAN_SETUP_H
+#define ESP32_WLED_API_SERVER_WLAN_SETUP_H
+
+#endif //ESP32_WLED_API_SERVER_WLAN_SETUP_H
