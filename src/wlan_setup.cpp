@@ -15,6 +15,7 @@
 #include <BLEDevice.h>
 #include <BLEAdvertising.h>
 #include <Preferences.h>
+#include <BLE2902.h>
 
 /** Unique device name */
 char apName[] = "LED-Strip";
@@ -24,6 +25,7 @@ bool hasCredentials = false;
 volatile bool isConnected = false;
 /** Connection change status */
 bool connectionStatusChanged = false;
+bool bleIsRunning = false;
 
 String ssid;
 String password;
@@ -82,6 +84,12 @@ void MyCallbackHandler::onWrite(BLECharacteristic *pCharacteristic) {
     ssid = jsonIn["ssid"].as<String>();
     password = jsonIn["password"].as<String>();
 
+    //reset nvs and reboot if ssid = b055684c-68d4-41e5-ac56-d140a2668cd4 and password = reset_nvs
+    if (ssid == "b055684c-68d4-41e5-ac56-d140a2668cd4" && password == "reset_nvs") {
+        nvs_flash_erase();
+        ESP.restart();
+    }
+
     Preferences preferences;
     preferences.begin("WiFiCred", false);
     preferences.putString("ssid", ssid);
@@ -136,18 +144,20 @@ void initBLE() {
     // Create BLE Characteristic for WiFi settings
     pCharacteristicWiFi = pService->createCharacteristic(
             BLEUUID(WIFI_UUID),
-            // WIFI_UUID,
             BLECharacteristic::PROPERTY_READ |
-            BLECharacteristic::PROPERTY_WRITE
+            BLECharacteristic::PROPERTY_WRITE |
+            BLECharacteristic::PROPERTY_NOTIFY
     );
     pCharacteristicWiFi->setCallbacks(new MyCallbackHandler());
 
+    pCharacteristicWiFi->addDescriptor(new BLE2902());
     // Start the service
     pService->start();
 
     // Start advertising
     pAdvertising = pServer->getAdvertising();
     pAdvertising->start();
+    bleIsRunning = true;
 }
 
 
@@ -166,32 +176,43 @@ bool connectWiFi() {
     WiFi.begin(ssid.c_str(), password.c_str());
     delay(500);
     Serial.println("Wait for connection");
-
     while (WiFi.status() != WL_CONNECTED) {
         if (WiFi.status() == WL_NO_SSID_AVAIL) {
             Serial.println("Connection failed. Wrong SSID");
             hasCredentials = false;
             connectionStatusChanged = false;
+            if (bleIsRunning) {
+                String ipAdress = WiFi.localIP().toString();
+                std::string stdSTring = (ipAdress.c_str());
+                pCharacteristicWiFi->setValue(stdSTring);
+                pCharacteristicWiFi->notify();
+            }
             return false;
         }
         if (WiFi.status() == WL_CONNECT_FAILED) {
             Serial.println("Connection failed.");
             hasCredentials = false;
             connectionStatusChanged = false;
+            if (bleIsRunning) {
+                String ipAdress = WiFi.localIP().toString();
+                std::string stdSTring = (ipAdress.c_str());
+                pCharacteristicWiFi->setValue(stdSTring);
+                pCharacteristicWiFi->notify();
+            }
             return false;
         }
     }
-    if (WiFi.localIP().toString() == "0.0.0.0") {
-        Serial.println("Got no IP");
-        hasCredentials = false;
-        connectionStatusChanged = false;
-    } else {
-        Serial.println('\n');
-        Serial.println("Connection established!");
-        Serial.print("IP address:\t");
-        Serial.println(WiFi.localIP());
-        return true;
+    Serial.println("");
+    Serial.println("Connection established!");
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
+    if (bleIsRunning) {
+        String ipAdress = WiFi.localIP().toString();
+        std::string stdSTring = (ipAdress.c_str());
+        pCharacteristicWiFi->setValue(stdSTring);
+        pCharacteristicWiFi->notify();
     }
+    return true;
 }
 
 void setupWlan() {
@@ -219,7 +240,8 @@ void setupWlan() {
     }
     preferences.end();
 
-    // Start BLE server
+    // Start BLE server and runs all the time for possible settings changes
+    initBLE();
     if (hasCredentials) {
         connectWiFi();
 
@@ -233,16 +255,11 @@ void setupWlan() {
 }
 
 void waitForBluetoothConnection() {
-    initBLE();
-    Serial.println("Waiting for Bluetooth input");
     connectionFailed:
+    Serial.println("Waiting for Bluetooth input");
     while (!isConnected) {
     }
-    Serial.print("isConnected: ");
-    Serial.print(isConnected);
-    Serial.println("");
     Serial.println("Connect to WiFi");
-
     if (!connectWiFi()) {
         isConnected = false;
         goto connectionFailed;

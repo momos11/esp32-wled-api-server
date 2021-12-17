@@ -22,21 +22,21 @@
 #include <Preferences.h>
 
 class MyServerCallbacks : public BLEServerCallbacks {
+public:
+    MyServerCallbacks();
+
     void onConnect(BLEServer *pServer);
 
     void onDisconnect(BLEServer *pServer);
-
-public:
-    MyServerCallbacks();
 };
 
 class MyCallbackHandler : public BLECharacteristicCallbacks {
+public:
+    MyCallbackHandler();
+
     void onWrite(BLECharacteristic *pCharacteristic);
 
     void onRead(BLECharacteristic *pCharacteristic);
-
-public:
-    MyCallbackHandler();
 };
 
 void initBLE();
@@ -52,5 +52,6 @@ void setupWlan();
 void createName();
 
 void waitForBluetoothConnection();
+
 
 #endif //ESP32_WLED_API_SERVER_WLAN_SETUP_H
