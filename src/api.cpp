@@ -4,6 +4,8 @@
 #include <iostream>
 #include <sstream>
 
+DynamicJsonDocument doc(1024);
+char buffer[250];
 
 Api::Api(Led *ledPointer) : server(80) {
     led = ledPointer;
@@ -39,6 +41,13 @@ void Api::handleMode() {
     led->ws2812fx.setMode(ledMode);
 }
 
+void Api::handleModeGet() {
+    doc.clear();
+    doc["ledMode"] = ledMode;
+    serializeJson(doc, buffer);
+    server.send(200, "application/json", buffer);
+}
+
 void Api::handleBrightness() {
     if (!server.hasArg("plain")) {
 
@@ -50,6 +59,13 @@ void Api::handleBrightness() {
     brightness = doc["brightness"].as<int>();
     server.send(200, "text/plain", (String) brightness);
     led->ws2812fx.setBrightness(brightness);
+}
+
+void Api::handleBrightnessGet() {
+    doc.clear();
+    doc["brightness"] = brightness;
+    serializeJson(doc, buffer);
+    server.send(200, "application/json", buffer);
 }
 
 void Api::handleSpeed() {
@@ -121,17 +137,32 @@ void Api::handleToggle() {
 }
 
 void Api::handleToggleGet() {
-    server.send(200, "text/plain", toggleState);
+    doc.clear();
+    doc["toggleState"] = toggleState;
+    serializeJson(doc, buffer);
+    server.send(200, "application/json", buffer);
+}
+
+void Api::handleInformationGet() {
+    doc.clear();
+    doc["toggleState"] = toggleState;
+    doc["brightness"] = brightness;
+    doc["ledMode"] = ledMode;
+    serializeJson(doc, buffer);
+    server.send(200, "application/json", buffer);
 }
 
 void Api::apiInit() {
     server.on("/ledMode", HTTP_POST, std::bind(&Api::handleMode, this));
+    server.on("/ledMode", HTTP_GET, std::bind(&Api::handleModeGet, this));
     server.on("/brightness", HTTP_POST, std::bind(&Api::handleBrightness, this));
+    server.on("/brightness", HTTP_GET, std::bind(&Api::handleBrightnessGet, this));
     server.on("/speed", HTTP_POST, std::bind(&Api::handleSpeed, this));
     server.on("/color", HTTP_POST, std::bind(&Api::handleColor, this));
     server.on("/colorRight", HTTP_POST, std::bind(&Api::handleRightColor, this));
     server.on("/toggleState", HTTP_POST, std::bind(&Api::handleToggle, this));
     server.on("/toggleState", HTTP_GET, std::bind(&Api::handleToggleGet, this));
+    server.on("/information", HTTP_GET, std::bind(&Api::handleInformationGet, this));
 }
 
 void Api::startServer() {

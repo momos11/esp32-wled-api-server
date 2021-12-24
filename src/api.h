@@ -42,6 +42,11 @@ public:
 
     void serverHandleClient();
 
+    void handleBrightnessGet();
+
+    void handleModeGet();
+
+    void handleInformationGet();
 };
 
 #endif //ESP32_WLED_API_SERVER_API_H
