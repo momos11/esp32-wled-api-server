@@ -17,8 +17,8 @@ void setup() {
     pinMode(LEDPIN, OUTPUT);
     digitalWrite(LEDPIN, LOW);
     delay(10);
-    api.startServer();
     led.startLed();
+    api.startServer();
     Serial.println("LED started");
 }
 

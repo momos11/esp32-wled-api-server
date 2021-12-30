@@ -9,11 +9,9 @@ class Api {
 public:
     Led *led;
     WebServer server;
-    String colorString;
-    String side;
-    String colorLeft;
-    String colorRight;
-    String toggleState;
+    uint32_t primaryColor;
+    uint32_t secondaryColor;
+    bool toggleState;
     int ledMode;
     int speed;
     int brightness;
@@ -22,15 +20,13 @@ public:
 
     void handleBrightness();
 
-    void handleMode();
+    void handleLedMode();
 
     void setCrossOrigin();
 
     void handleSpeed();
 
     void handleColor();
-
-    void handleRightColor();
 
     void handleToggle();
 
@@ -44,9 +40,11 @@ public:
 
     void handleBrightnessGet();
 
-    void handleModeGet();
+    void handleLedModeGet();
 
     void handleInformationGet();
+
+    void handleColorGet();
 };
 
 #endif //ESP32_WLED_API_SERVER_API_H
