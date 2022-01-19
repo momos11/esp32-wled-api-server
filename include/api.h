@@ -45,6 +45,8 @@ public:
     void handleInformationGet();
 
     void handleColorGet();
+
+    static void saveSettings(int key, int value);
 };
 
 #endif //ESP32_WLED_API_SERVER_API_H

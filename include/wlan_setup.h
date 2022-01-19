@@ -14,7 +14,7 @@
 #include <WiFi.h>
 #include <nvs.h>
 #include <nvs_flash.h>
-#include <ArduinoJson.h>
+#include "ArduinoJson.h"
 // Includes for BLE
 #include <BLEServer.h>
 #include <BLEDevice.h>
