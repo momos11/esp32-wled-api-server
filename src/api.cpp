@@ -95,7 +95,7 @@ void Api::handleBrightness() {
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, server.arg("plain"));
 
-    if(doc["brightness"].as<int>() != brightness) {
+    if(doc["brightness"].as<int>() != brightness && doc["end"].as<bool>()) {
         saveSettings(BRIGHTNESS, doc["brightness"].as<int>());
     }
 
@@ -120,7 +120,7 @@ void Api::handleSpeed() {
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, server.arg("plain"));
 
-    if(doc["speed"].as<int>() != speed) {
+    if(doc["speed"].as<int>() != speed && doc["end"].as<bool>()) {
         saveSettings(SPEED, doc["speed"].as<int>());
     }
 
@@ -138,11 +138,11 @@ void Api::handleColor() {
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, server.arg("plain"));
 
-    if (doc["primaryColor"].as<int>() != primaryColor) {
+    if (doc["primaryColor"].as<int>() != primaryColor && doc["end"].as<bool>()) {
         saveSettings(PRIMARY_COLOR, doc["primaryColor"].as<int>());
     }
 
-    if (doc["secondaryColor"].as<int>() != secondaryColor) {
+    if (doc["secondaryColor"].as<int>() != secondaryColor && doc["end"].as<bool>()) {
         saveSettings(SECONDARY_COLOR, doc["secondaryColor"].as<int>());
     }
 
