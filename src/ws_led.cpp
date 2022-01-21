@@ -1,5 +1,5 @@
 #include "ws_led.h"
-#include "WS2812FX.h"
+#include <WS2812FX.h>
 #include "Preferences.h"
 
 Led::Led() : ws2812fx(NUMPIXELS, LEDPIN, NEO_GRB + NEO_KHZ800) {

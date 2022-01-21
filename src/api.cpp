@@ -1,6 +1,7 @@
 #include "api.h"
 #include <ArduinoJson.h>
 #include <Preferences.h>
+#include <Update.h>
 
 DynamicJsonDocument doc(1024);
 char buffer[250];
@@ -229,6 +230,34 @@ void Api::apiInit() {
     server.on("/toggleState", HTTP_POST, std::bind(&Api::handleToggle, this));
     server.on("/toggleState", HTTP_GET, std::bind(&Api::handleToggleGet, this));
     server.on("/information", HTTP_GET, std::bind(&Api::handleInformationGet, this));
+    setupOTA();
+}
+
+void Api::setupOTA(){
+    server.on("/update", HTTP_POST, [this]() {
+        server.sendHeader("Connection", "close");
+        server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+        ESP.restart();
+    }, [this]() {
+        HTTPUpload& upload = server.upload();
+        if (upload.status == UPLOAD_FILE_START) {
+            Serial.printf("Update: %s\n", upload.filename.c_str());
+            if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
+                Update.printError(Serial);
+            }
+        } else if (upload.status == UPLOAD_FILE_WRITE) {
+            /* flashing firmware to ESP*/
+            if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+                Update.printError(Serial);
+            }
+        } else if (upload.status == UPLOAD_FILE_END) {
+            if (Update.end(true)) { //true to set the size to the current progress
+                Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+            } else {
+                Update.printError(Serial);
+            }
+        }
+    });
 }
 
 void Api::startServer() {

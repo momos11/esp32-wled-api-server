@@ -1,10 +1,10 @@
 #ifndef ESP32_WLED_API_SERVER_WS_LED_H
 #define ESP32_WLED_API_SERVER_WS_LED_H
 
-#include "WS2812FX.h"
+#include <WS2812FX.h>
 
 #define LEDPIN 12
-#define NUMPIXELS 60
+#define NUMPIXELS 120
 
 class Led {
 public:
