@@ -11,6 +11,7 @@ public:
     WebServer server;
     uint32_t primaryColor;
     uint32_t secondaryColor;
+    uint32_t colors[3];
     bool toggleState;
     int ledMode;
     int speed;

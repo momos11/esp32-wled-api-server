@@ -241,15 +241,16 @@ void setupWlan() {
     preferences.end();
 
     // Start BLE server and runs all the time for possible settings changes
-    initBLE();
     if (hasCredentials) {
         connectWiFi();
 
         if (WiFi.localIP().toString() == "0.0.0.0") {
+            initBLE();
             waitForBluetoothConnection();
         }
 
     } else {
+        initBLE();
         waitForBluetoothConnection();
     }
 }

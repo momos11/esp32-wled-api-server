@@ -6,8 +6,8 @@ char buffer[250];
 
 Api::Api(Led *ledPointer) : server(80) {
     led = ledPointer;
-    primaryColor = led->ws2812fx.getColor(0);
-    secondaryColor = led->ws2812fx.getColor(1);
+    primaryColor =  led->ws2812fx.getColors(0)[0];
+    secondaryColor = led->ws2812fx.getColors(0)[1];
     toggleState = led->ws2812fx.isRunning();
     ledMode = led->ws2812fx.getMode();
     speed = led->ws2812fx.getSpeed();
@@ -89,8 +89,9 @@ void Api::handleColor() {
     doc["secondaryColor"] = secondaryColor;
     serializeJson(doc, buffer);
     server.send(200, "application/json", buffer);
-    led->ws2812fx.setColor(0, primaryColor);
-    led->ws2812fx.setColor(1, primaryColor);
+    colors[0] = primaryColor;
+    colors[1] = secondaryColor;
+    led->ws2812fx.setColors(0, colors);
 }
 
 void Api::handleColorGet() {
@@ -132,12 +133,15 @@ void Api::handleToggleGet() {
 }
 
 void Api::handleInformationGet() {
-    primaryColor = led->ws2812fx.getColor(0);
-    secondaryColor = led->ws2812fx.getColor(1);
+    primaryColor = led->ws2812fx.getColors(0)[0];
+    secondaryColor = led->ws2812fx.getColors(0)[1];
     toggleState = led->ws2812fx.isRunning();
     ledMode = led->ws2812fx.getMode();
     speed = led->ws2812fx.getSpeed();
     brightness = led->ws2812fx.getBrightness();
+    colors[0] = led->ws2812fx.getColors(0)[0];
+    colors[1] = led->ws2812fx.getColors(0)[1];
+    colors[2] = led->ws2812fx.getColors(0)[2];
     doc.clear();
     doc["toggleState"] = toggleState;
     doc["brightness"] = brightness;
