@@ -20,7 +20,7 @@ endif()
 
 add_custom_target(
     Production ALL
-    COMMAND platformio -c clion run -j8 "$<$<NOT:$<CONFIG:All>>:-e${CMAKE_BUILD_TYPE}>"
+    COMMAND platformio -c clion run "$<$<NOT:$<CONFIG:All>>:-e${CMAKE_BUILD_TYPE}>"
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
@@ -30,4 +30,4 @@ add_custom_target(
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-add_executable(Z_DUMMY_TARGET ${SRC_LIST} src/main.cpp src/wlan_setup.cpp src/wlan_setup.h src/api.cpp src/api.h src/ws_led.cpp src/ws_led.h)
+add_executable(Z_DUMMY_TARGET ${SRC_LIST})

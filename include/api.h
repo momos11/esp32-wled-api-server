@@ -46,6 +46,10 @@ public:
     void handleInformationGet();
 
     void handleColorGet();
+
+    static void saveSettings(int key, int value);
+
+    void setupOTA();
 };
 
 #endif //ESP32_WLED_API_SERVER_API_H

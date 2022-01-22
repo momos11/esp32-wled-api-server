@@ -1,8 +1,20 @@
 #include "api.h"
 #include <ArduinoJson.h>
+#include <Preferences.h>
+#include <Update.h>
 
 DynamicJsonDocument doc(1024);
 char buffer[250];
+
+enum {
+    PRIMARY_COLOR,
+    SECONDARY_COLOR,
+    TOGGLE_STATE,
+    LED_MODE,
+    SPEED,
+    BRIGHTNESS,
+};
+
 
 Api::Api(Led *ledPointer) : server(80) {
     led = ledPointer;
@@ -12,6 +24,35 @@ Api::Api(Led *ledPointer) : server(80) {
     ledMode = led->ws2812fx.getMode();
     speed = led->ws2812fx.getSpeed();
     brightness = led->ws2812fx.getBrightness();
+}
+
+void Api::saveSettings(int key, int value) {
+    Preferences preference;
+    preference.begin("state", false);
+
+    switch (key) {
+        default:
+            break;
+        case PRIMARY_COLOR:
+            preference.putUInt("primaryColor", value);
+            break;
+        case SECONDARY_COLOR:
+            preference.putUInt("secondaryColor", value);
+            break;
+        case TOGGLE_STATE:
+            preference.putBool("toggleState", value);
+            break;
+        case LED_MODE:
+            preference.putInt("ledMode", value);
+            break;
+        case SPEED:
+            preference.putInt("speed", value);
+            break;
+        case BRIGHTNESS:
+            preference.putInt("brightness", value);
+            break;
+    }
+    preference.end();
 }
 
 void Api::setCrossOrigin() {
@@ -29,6 +70,11 @@ void Api::handleLedMode() {
     }
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, server.arg("plain"));
+
+    if (doc["ledMode"].as<int>() != ledMode) {
+        saveSettings(LED_MODE, doc["ledMode"].as<int>());
+    }
+
     ledMode = doc["ledMode"].as<int>();
     server.send(200, "application/json", (String) ledMode);
     led->ws2812fx.setMode(ledMode);
@@ -49,6 +95,11 @@ void Api::handleBrightness() {
     }
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, server.arg("plain"));
+
+    if(doc["brightness"].as<int>() != brightness && doc["end"].as<bool>()) {
+        saveSettings(BRIGHTNESS, doc["brightness"].as<int>());
+    }
+
     brightness = doc["brightness"].as<int>();
     server.send(200, "application/json", (String) brightness);
     led->ws2812fx.setBrightness(brightness);
@@ -69,6 +120,11 @@ void Api::handleSpeed() {
     }
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, server.arg("plain"));
+
+    if(doc["speed"].as<int>() != speed && doc["end"].as<bool>()) {
+        saveSettings(SPEED, doc["speed"].as<int>());
+    }
+
     speed = doc["speed"].as<int>();
     server.send(200, "application/json", (String) speed);
     led->ws2812fx.setSpeed(speed);
@@ -82,6 +138,15 @@ void Api::handleColor() {
     }
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, server.arg("plain"));
+
+    if (doc["primaryColor"].as<int>() != primaryColor && doc["end"].as<bool>()) {
+        saveSettings(PRIMARY_COLOR, doc["primaryColor"].as<int>());
+    }
+
+    if (doc["secondaryColor"].as<int>() != secondaryColor && doc["end"].as<bool>()) {
+        saveSettings(SECONDARY_COLOR, doc["secondaryColor"].as<int>());
+    }
+
     primaryColor = doc["primaryColor"].as<int>();
     secondaryColor = doc["secondaryColor"].as<int>();
     doc.clear();
@@ -110,6 +175,11 @@ void Api::handleToggle() {
     }
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, server.arg("plain"));
+
+    if (doc["toggle"].as<bool>() != toggleState) {
+        saveSettings(TOGGLE_STATE, doc["toggleState"].as<bool>());
+    }
+
     toggleState = doc["toggleState"].as<bool>();
     doc.clear();
     doc["toggleState"] = toggleState;
@@ -164,6 +234,34 @@ void Api::apiInit() {
     server.on("/toggleState", HTTP_POST, std::bind(&Api::handleToggle, this));
     server.on("/toggleState", HTTP_GET, std::bind(&Api::handleToggleGet, this));
     server.on("/information", HTTP_GET, std::bind(&Api::handleInformationGet, this));
+    setupOTA();
+}
+
+void Api::setupOTA(){
+    server.on("/update", HTTP_POST, [this]() {
+        server.sendHeader("Connection", "close");
+        server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
+        ESP.restart();
+    }, [this]() {
+        HTTPUpload& upload = server.upload();
+        if (upload.status == UPLOAD_FILE_START) {
+            Serial.printf("Update: %s\n", upload.filename.c_str());
+            if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
+                Update.printError(Serial);
+            }
+        } else if (upload.status == UPLOAD_FILE_WRITE) {
+            /* flashing firmware to ESP*/
+            if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+                Update.printError(Serial);
+            }
+        } else if (upload.status == UPLOAD_FILE_END) {
+            if (Update.end(true)) { //true to set the size to the current progress
+                Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
+            } else {
+                Update.printError(Serial);
+            }
+        }
+    });
 }
 
 void Api::startServer() {
