@@ -1,21 +1,4 @@
-//
-// Created by mauri on 14.12.2021.
-//
-
 #include "wlan_setup.h"
-
-// Default Arduino includes
-#include <Arduino.h>
-#include <WiFi.h>
-#include <nvs.h>
-#include <nvs_flash.h>
-#include <ArduinoJson.h>
-// Includes for BLE
-#include <BLEServer.h>
-#include <BLEDevice.h>
-#include <BLEAdvertising.h>
-#include <Preferences.h>
-#include <BLE2902.h>
 
 /** Unique device name */
 char apName[] = "LED-Strip";
@@ -83,12 +66,6 @@ void MyCallbackHandler::onWrite(BLECharacteristic *pCharacteristic) {
     deserializeJson(jsonIn, String((char *) &value[0]));
     ssid = jsonIn["ssid"].as<String>();
     password = jsonIn["password"].as<String>();
-
-    //reset nvs and reboot if ssid = b055684c-68d4-41e5-ac56-d140a2668cd4 and password = reset_nvs
-    if (ssid == "b055684c-68d4-41e5-ac56-d140a2668cd4" && password == "reset_nvs") {
-        nvs_flash_erase();
-        ESP.restart();
-    }
 
     Preferences preferences;
     preferences.begin("WiFiCred", false);
@@ -159,7 +136,6 @@ void initBLE() {
     pAdvertising->start();
     bleIsRunning = true;
 }
-
 
 /**
  * Start connection to AP

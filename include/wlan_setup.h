@@ -20,6 +20,7 @@
 #include <BLEDevice.h>
 #include <BLEAdvertising.h>
 #include <Preferences.h>
+#include <BLE2902.h>
 
 class MyServerCallbacks : public BLEServerCallbacks {
 public:

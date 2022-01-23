@@ -3,9 +3,6 @@
 #include <Preferences.h>
 #include <Update.h>
 
-DynamicJsonDocument doc(1024);
-char buffer[250];
-
 enum {
     PRIMARY_COLOR,
     SECONDARY_COLOR,
@@ -18,7 +15,7 @@ enum {
 
 Api::Api(Led *ledPointer) : server(80) {
     led = ledPointer;
-    primaryColor =  led->ws2812fx.getColors(0)[0];
+    primaryColor = led->ws2812fx.getColors(0)[0];
     secondaryColor = led->ws2812fx.getColors(0)[1];
     toggleState = led->ws2812fx.isRunning();
     ledMode = led->ws2812fx.getMode();
@@ -34,7 +31,10 @@ void Api::saveSettings(int key, int value) {
         default:
             break;
         case PRIMARY_COLOR:
+            Serial.print("Primary color: ");
+            Serial.println(value);
             preference.putUInt("primaryColor", value);
+            Serial.println(preference.getUInt("primaryColor"));
             break;
         case SECONDARY_COLOR:
             preference.putUInt("secondaryColor", value);
@@ -60,7 +60,7 @@ void Api::setCrossOrigin() {
     server.sendHeader(F("Access-Control-Max-Age"), F("600"));
     server.sendHeader(F("Access-Control-Allow-Methods"), F("PUT,POST,GET,OPTIONS"));
     server.sendHeader(F("Access-Control-Allow-Headers"), F("*"));
-};
+}
 
 void Api::handleLedMode() {
     if (!server.hasArg("plain")) {
@@ -81,8 +81,9 @@ void Api::handleLedMode() {
 }
 
 void Api::handleLedModeGet() {
-    doc.clear();
+    DynamicJsonDocument doc(1024);
     doc["ledMode"] = ledMode;
+    char buffer[250];
     serializeJson(doc, buffer);
     server.send(200, "application/json", buffer);
 }
@@ -96,7 +97,9 @@ void Api::handleBrightness() {
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, server.arg("plain"));
 
-    if(doc["brightness"].as<int>() != brightness && doc["end"].as<bool>()) {
+
+    if (doc["end"].as<bool>()) {
+        Serial.println(doc["end"].as<bool>());
         saveSettings(BRIGHTNESS, doc["brightness"].as<int>());
     }
 
@@ -106,8 +109,9 @@ void Api::handleBrightness() {
 }
 
 void Api::handleBrightnessGet() {
-    doc.clear();
+    DynamicJsonDocument doc(1024);
     doc["brightness"] = brightness;
+    char buffer[250];
     serializeJson(doc, buffer);
     server.send(200, "application/json", buffer);
 }
@@ -121,7 +125,7 @@ void Api::handleSpeed() {
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, server.arg("plain"));
 
-    if(doc["speed"].as<int>() != speed && doc["end"].as<bool>()) {
+    if (doc["end"].as<bool>()) {
         saveSettings(SPEED, doc["speed"].as<int>());
     }
 
@@ -139,11 +143,9 @@ void Api::handleColor() {
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, server.arg("plain"));
 
-    if (doc["primaryColor"].as<int>() != primaryColor && doc["end"].as<bool>()) {
+    if (doc["end"].as<bool>()) {
+        Serial.println(doc["end"].as<bool>());
         saveSettings(PRIMARY_COLOR, doc["primaryColor"].as<int>());
-    }
-
-    if (doc["secondaryColor"].as<int>() != secondaryColor && doc["end"].as<bool>()) {
         saveSettings(SECONDARY_COLOR, doc["secondaryColor"].as<int>());
     }
 
@@ -152,6 +154,7 @@ void Api::handleColor() {
     doc.clear();
     doc["primaryColor"] = primaryColor;
     doc["secondaryColor"] = secondaryColor;
+    char buffer[250];
     serializeJson(doc, buffer);
     server.send(200, "application/json", buffer);
     colors[0] = primaryColor;
@@ -160,9 +163,10 @@ void Api::handleColor() {
 }
 
 void Api::handleColorGet() {
-    doc.clear();
+    DynamicJsonDocument doc(1024);
     doc["primaryColor"] = primaryColor;
     doc["secondaryColor"] = secondaryColor;
+    char buffer[250];
     serializeJson(doc, buffer);
     server.send(200, "application/json", buffer);
 }
@@ -176,13 +180,14 @@ void Api::handleToggle() {
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, server.arg("plain"));
 
-    if (doc["toggle"].as<bool>() != toggleState) {
+    if (doc["toggleState"].as<bool>() != toggleState) {
         saveSettings(TOGGLE_STATE, doc["toggleState"].as<bool>());
     }
 
     toggleState = doc["toggleState"].as<bool>();
     doc.clear();
     doc["toggleState"] = toggleState;
+    char buffer[250];
     serializeJson(doc, buffer);
     server.send(200, "application/json", buffer);
 
@@ -196,8 +201,9 @@ void Api::handleToggle() {
 }
 
 void Api::handleToggleGet() {
-    doc.clear();
+    DynamicJsonDocument doc(1024);
     doc["toggleState"] = toggleState;
+    char buffer[250];
     serializeJson(doc, buffer);
     server.send(200, "application/json", buffer);
 }
@@ -212,16 +218,38 @@ void Api::handleInformationGet() {
     colors[0] = led->ws2812fx.getColors(0)[0];
     colors[1] = led->ws2812fx.getColors(0)[1];
     colors[2] = led->ws2812fx.getColors(0)[2];
-    doc.clear();
+    DynamicJsonDocument doc(1024);
     doc["toggleState"] = toggleState;
     doc["brightness"] = brightness;
     doc["ledMode"] = ledMode;
     doc["speed"] = speed;
     doc["primaryColor"] = primaryColor;
     doc["secondaryColor"] = secondaryColor;
+    char buffer[250];
     serializeJson(doc, buffer);
     server.send(200, "application/json", buffer);
 }
+
+void Api::resetNVS() {
+    if (!server.hasArg("plain")) {
+
+        server.send(200, "application/json", "Body not received");
+        return;
+    }
+    DynamicJsonDocument doc(1024);
+    deserializeJson(doc, server.arg("plain"));
+
+    if (doc["command"] == "reset_nvs" && doc["password"] == "b055684c-68d4-41e5-ac56-d140a2668cd4") {
+        Preferences preferences;
+        preferences.begin("WiFiCred", false);
+        preferences.clear();
+        preferences.end();
+        preferences.begin("state", false);
+        preferences.clear();
+        preferences.end();
+        ESP.restart();
+    }
+};
 
 void Api::apiInit() {
     server.on("/ledMode", HTTP_POST, std::bind(&Api::handleLedMode, this));
@@ -234,16 +262,17 @@ void Api::apiInit() {
     server.on("/toggleState", HTTP_POST, std::bind(&Api::handleToggle, this));
     server.on("/toggleState", HTTP_GET, std::bind(&Api::handleToggleGet, this));
     server.on("/information", HTTP_GET, std::bind(&Api::handleInformationGet, this));
+    server.on("/reset", HTTP_POST, std::bind(&Api::resetNVS, this));
     setupOTA();
 }
 
-void Api::setupOTA(){
+void Api::setupOTA() {
     server.on("/update", HTTP_POST, [this]() {
         server.sendHeader("Connection", "close");
         server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
         ESP.restart();
     }, [this]() {
-        HTTPUpload& upload = server.upload();
+        HTTPUpload &upload = server.upload();
         if (upload.status == UPLOAD_FILE_START) {
             Serial.printf("Update: %s\n", upload.filename.c_str());
             if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size

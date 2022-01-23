@@ -4,6 +4,7 @@
 #include "WS2812FX.h"
 #include "ws_led.h"
 #include "WebServer.h"
+#include <ArduinoJson.h>
 
 class Api {
 public:
@@ -11,13 +12,13 @@ public:
     WebServer server;
     uint32_t primaryColor;
     uint32_t secondaryColor;
-    uint32_t colors[3];
+    uint32_t colors[3]{};
     bool toggleState;
     int ledMode;
     int speed;
     int brightness;
 
-    Api(Led *led);
+    explicit Api(Led *led);
 
     void handleBrightness();
 
@@ -50,6 +51,8 @@ public:
     static void saveSettings(int key, int value);
 
     void setupOTA();
+
+    void resetNVS();
 };
 
 #endif //ESP32_WLED_API_SERVER_API_H
