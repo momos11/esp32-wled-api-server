@@ -48,11 +48,13 @@ public:
 
     void handleColorGet();
 
-    static void saveSettings(int key, int value);
+    static void saveSettings(int key, uint32_t value);
 
     void setupOTA();
 
-    void resetNVS();
+    void handleReset();
+
+    void handleUpdate();
 };
 
 #endif //ESP32_WLED_API_SERVER_API_H

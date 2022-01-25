@@ -2,6 +2,7 @@
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <Update.h>
+#include "update_esp.h"
 
 enum {
     PRIMARY_COLOR,
@@ -23,7 +24,7 @@ Api::Api(Led *ledPointer) : server(80) {
     brightness = led->ws2812fx.getBrightness();
 }
 
-void Api::saveSettings(int key, int value) {
+void Api::saveSettings(int key, uint32_t value) {
     Preferences preference;
     preference.begin("state", false);
 
@@ -31,10 +32,7 @@ void Api::saveSettings(int key, int value) {
         default:
             break;
         case PRIMARY_COLOR:
-            Serial.print("Primary color: ");
-            Serial.println(value);
             preference.putUInt("primaryColor", value);
-            Serial.println(preference.getUInt("primaryColor"));
             break;
         case SECONDARY_COLOR:
             preference.putUInt("secondaryColor", value);
@@ -43,13 +41,13 @@ void Api::saveSettings(int key, int value) {
             preference.putBool("toggleState", value);
             break;
         case LED_MODE:
-            preference.putInt("ledMode", value);
+            preference.putUInt("ledMode", value);
             break;
         case SPEED:
-            preference.putInt("speed", value);
+            preference.putUInt("speed", value);
             break;
         case BRIGHTNESS:
-            preference.putInt("brightness", value);
+            preference.putUInt("brightness", value);
             break;
     }
     preference.end();
@@ -144,13 +142,12 @@ void Api::handleColor() {
     deserializeJson(doc, server.arg("plain"));
 
     if (doc["end"].as<bool>()) {
-        Serial.println(doc["end"].as<bool>());
-        saveSettings(PRIMARY_COLOR, doc["primaryColor"].as<int>());
-        saveSettings(SECONDARY_COLOR, doc["secondaryColor"].as<int>());
+        saveSettings(PRIMARY_COLOR, doc["primaryColor"].as<uint32_t>());
+        saveSettings(SECONDARY_COLOR, doc["secondaryColor"].as<uint32_t>());
     }
 
-    primaryColor = doc["primaryColor"].as<int>();
-    secondaryColor = doc["secondaryColor"].as<int>();
+    primaryColor = doc["primaryColor"].as<uint32_t>();
+    secondaryColor = doc["secondaryColor"].as<uint32_t>();
     doc.clear();
     doc["primaryColor"] = primaryColor;
     doc["secondaryColor"] = secondaryColor;
@@ -230,7 +227,7 @@ void Api::handleInformationGet() {
     server.send(200, "application/json", buffer);
 }
 
-void Api::resetNVS() {
+void Api::handleReset() {
     if (!server.hasArg("plain")) {
 
         server.send(200, "application/json", "Body not received");
@@ -251,6 +248,15 @@ void Api::resetNVS() {
     }
 };
 
+void Api::handleUpdate(){
+    DynamicJsonDocument doc(1024);
+    doc["message"] = "Is going to update!";
+    char buffer[250];
+    serializeJson(doc, buffer);
+    server.send(200, "application/json", buffer);
+    updateInit();
+}
+
 void Api::apiInit() {
     server.on("/ledMode", HTTP_POST, std::bind(&Api::handleLedMode, this));
     server.on("/ledMode", HTTP_GET, std::bind(&Api::handleLedModeGet, this));
@@ -262,7 +268,8 @@ void Api::apiInit() {
     server.on("/toggleState", HTTP_POST, std::bind(&Api::handleToggle, this));
     server.on("/toggleState", HTTP_GET, std::bind(&Api::handleToggleGet, this));
     server.on("/information", HTTP_GET, std::bind(&Api::handleInformationGet, this));
-    server.on("/reset", HTTP_POST, std::bind(&Api::resetNVS, this));
+    server.on("/reset", HTTP_POST, std::bind(&Api::handleReset, this));
+    server.on("/update", HTTP_GET, std::bind(&Api::handleUpdate, this));
     setupOTA();
 }
 

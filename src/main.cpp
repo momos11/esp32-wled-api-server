@@ -2,8 +2,9 @@
 #include "wlan_setup.h"
 #include "api.h"
 #include "ws_led.h"
+#include "update_esp.h"
 
-#define TIMER_MS 500
+#define TIMER_MS 400
 
 unsigned long last_change = 0;
 unsigned long now = 0;
@@ -14,6 +15,7 @@ Api api(ledPointer);
 void setup() {
     //connects to WLAN if credentials are stored
     setupWlan();
+    //update_esp();
     pinMode(LEDPIN, OUTPUT);
     digitalWrite(LEDPIN, LOW);
     delay(10);

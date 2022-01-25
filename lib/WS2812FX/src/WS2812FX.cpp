@@ -1710,9 +1710,9 @@ uint16_t WS2812FX::mode_custom_0() {
     rgb_secondary[1] = ((_seg->colors[1] >> 8) & 0xFF);   // Extract the GG byte
     rgb_secondary[2] = ((_seg->colors[1]) & 0xFF); //Extrac
     for (int16_t i = 0; i < _seg_len; i++) {
-        uint8_t red = mixGradient(rgb_primary[0], rgb_secondary[0], i, 60);
-        uint8_t green = mixGradient(rgb_primary[1], rgb_secondary[1], i, 60);
-        uint8_t blue = mixGradient(rgb_primary[2], rgb_secondary[2], i, 60);
+        uint8_t red = mixGradient(rgb_primary[0], rgb_secondary[0], i, 120);
+        uint8_t green = mixGradient(rgb_primary[1], rgb_secondary[1], i, 120);
+        uint8_t blue = mixGradient(rgb_primary[2], rgb_secondary[2], i, 120);
         setPixelColor(i, red, green, blue);
     }
     SET_CYCLE;
@@ -1729,18 +1729,18 @@ uint16_t WS2812FX::mode_custom_1() {
     rgb_secondary[1] = ((_seg->colors[1] >> 8) & 0xFF);   // Extract the GG byte
     rgb_secondary[2] = ((_seg->colors[1]) & 0xFF); //Extrac
 
-    for (int16_t i = 0; i < 25; i++) {
+    for (int16_t i = 0; i < 50; i++) {
         setPixelColor(i, _seg->colors[0]);
     }
 
-    for (int16_t i = 25; i < 35; i++) {
-        uint8_t red = mixGradient(rgb_primary[0], rgb_secondary[0], i - 25, 10);
-        uint8_t green = mixGradient(rgb_primary[1], rgb_secondary[1], i - 25, 10);
-        uint8_t blue = mixGradient(rgb_primary[2], rgb_secondary[2], i - 25, 10);
+    for (int16_t i = 50; i < 70; i++) {
+        uint8_t red = mixGradient(rgb_primary[0], rgb_secondary[0], i - 50, 20);
+        uint8_t green = mixGradient(rgb_primary[1], rgb_secondary[1], i - 50, 20);
+        uint8_t blue = mixGradient(rgb_primary[2], rgb_secondary[2], i - 50, 20);
         setPixelColor(i, red, green, blue);
     }
 
-    for (int16_t i = 35; i < 60; i++) {
+    for (int16_t i = 70; i < 120; i++) {
         setPixelColor(i, _seg->colors[1]);
     }
     SET_CYCLE;
