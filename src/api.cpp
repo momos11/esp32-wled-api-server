@@ -2,7 +2,10 @@
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <Update.h>
-#include "update_esp.h"
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+#include <HTTPUpdate.h>
+#include "cert.h"
 
 enum {
     PRIMARY_COLOR,
@@ -12,6 +15,8 @@ enum {
     SPEED,
     BRIGHTNESS,
 };
+
+#define URL_fw_Bin "https://raw.githubusercontent.com/momos11/MLED-Server/releases/download/Alpha/firmware.bin"
 
 
 Api::Api(Led *ledPointer) : server(80) {
@@ -254,7 +259,7 @@ void Api::handleUpdate(){
     char buffer[250];
     serializeJson(doc, buffer);
     server.send(200, "application/json", buffer);
-    updateInit();
+    setupOTA();
 }
 
 void Api::apiInit() {
@@ -274,31 +279,24 @@ void Api::apiInit() {
 }
 
 void Api::setupOTA() {
-    server.on("/update", HTTP_POST, [this]() {
-        server.sendHeader("Connection", "close");
-        server.send(200, "text/plain", (Update.hasError()) ? "FAIL" : "OK");
-        ESP.restart();
-    }, [this]() {
-        HTTPUpload &upload = server.upload();
-        if (upload.status == UPLOAD_FILE_START) {
-            Serial.printf("Update: %s\n", upload.filename.c_str());
-            if (!Update.begin(UPDATE_SIZE_UNKNOWN)) { //start with max available size
-                Update.printError(Serial);
-            }
-        } else if (upload.status == UPLOAD_FILE_WRITE) {
-            /* flashing firmware to ESP*/
-            if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-                Update.printError(Serial);
-            }
-        } else if (upload.status == UPLOAD_FILE_END) {
-            if (Update.end(true)) { //true to set the size to the current progress
-                Serial.printf("Update Success: %u\nRebooting...\n", upload.totalSize);
-            } else {
-                Update.printError(Serial);
-            }
-        }
-    });
-}
+    WiFiClientSecure client;
+    client.setCACert(rootCACertificate);
+    httpUpdate.setLedPin( LOW);
+    t_httpUpdate_return ret = httpUpdate.update(client, URL_fw_Bin);
+
+    switch (ret) {
+        case HTTP_UPDATE_FAILED:
+            Serial.printf("HTTP_UPDATE_FAILD Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+            break;
+
+        case HTTP_UPDATE_NO_UPDATES:
+            Serial.println("HTTP_UPDATE_NO_UPDATES");
+            break;
+
+        case HTTP_UPDATE_OK:
+            Serial.println("HTTP_UPDATE_OK");
+            break;
+    }}
 
 void Api::startServer() {
     apiInit();
