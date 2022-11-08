@@ -1,5 +1,4 @@
 #include "api.h"
-#include <ArduinoJson.h>
 #include <Preferences.h>
 #include <Update.h>
 #include <WiFiClientSecure.h>
@@ -16,7 +15,7 @@ enum {
     BRIGHTNESS,
 };
 
-#define URL_fw_Bin "https://raw.githubusercontent.com/momos11/MLED-Server/releases/download/Alpha/firmware.bin"
+#define URL_fw_Bin "https://github.com/momos11/MLED-Server/releases/download/Alpha/firmware.bin"
 
 
 Api::Api(Led *ledPointer) : server(80) {
@@ -275,15 +274,16 @@ void Api::apiInit() {
     server.on("/information", HTTP_GET, std::bind(&Api::handleInformationGet, this));
     server.on("/reset", HTTP_POST, std::bind(&Api::handleReset, this));
     server.on("/update", HTTP_GET, std::bind(&Api::handleUpdate, this));
-    setupOTA();
 }
 
 void Api::setupOTA() {
     WiFiClientSecure client;
+    Serial.println("Starting OTA");
+    Serial.println("Set CACert");
     client.setCACert(rootCACertificate);
-    httpUpdate.setLedPin( LOW);
+    Serial.println("CACert set");
     t_httpUpdate_return ret = httpUpdate.update(client, URL_fw_Bin);
-
+    Serial.println("Update done");
     switch (ret) {
         case HTTP_UPDATE_FAILED:
             Serial.printf("HTTP_UPDATE_FAILD Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());

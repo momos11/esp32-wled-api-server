@@ -5,7 +5,6 @@
 
 //DigiCert root certificate has expiry date of 10 Nov 2031
 const char * rootCACertificate = \
-
 "-----BEGIN CERTIFICATE-----\n"
 "MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBh\n"
 "MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3\n"
@@ -27,8 +26,6 @@ const char * rootCACertificate = \
 "PnlUkiaY4IBIqDfv8NZ5YBberOgOzW6sRBc4L0na4UU+Krk2U886UAb3LujEV0ls\n"
 "YSEY1QSteDwsOoBrp+uvFRTp2InBuThs4pFsiv9kuXclVzDAGySj4dzp30d8tbQk\n"
 "CAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4=\n"
-"-----END CERTIFICATE-----";
-
-
+"-----END CERTIFICATE-----\n";
 #endif
 

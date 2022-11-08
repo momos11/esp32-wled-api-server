@@ -106,7 +106,9 @@ void MyCallbackHandler::onRead(BLECharacteristic *pCharacteristic) {
  */
 void initBLE() {
     // Initialize BLE and set output power
+    Serial.println("Initializing BLE...");
     BLEDevice::init(apName);
+    Serial.println("BLE initialized");
     BLEDevice::setPower(ESP_PWR_LVL_P7);
 
     // Create BLE Server
@@ -116,18 +118,18 @@ void initBLE() {
     pServer->setCallbacks(new MyServerCallbacks());
 
     // Create BLE Service
-    pService = pServer->createService(BLEUUID(SERVICE_UUID), 20);
+    pService = pServer->createService(BLEUUID(SERVICE_UUID));
 
     // Create BLE Characteristic for WiFi settings
     pCharacteristicWiFi = pService->createCharacteristic(
             BLEUUID(WIFI_UUID),
-            BLECharacteristic::PROPERTY_READ |
-            BLECharacteristic::PROPERTY_WRITE |
-            BLECharacteristic::PROPERTY_NOTIFY
+            NIMBLE_PROPERTY::READ |
+            NIMBLE_PROPERTY::WRITE |
+            NIMBLE_PROPERTY::NOTIFY
     );
     pCharacteristicWiFi->setCallbacks(new MyCallbackHandler());
 
-    pCharacteristicWiFi->addDescriptor(new BLE2902());
+    pCharacteristicWiFi->addDescriptor(new NimBLE2904());
     // Start the service
     pService->start();
 
@@ -217,18 +219,21 @@ void setupWlan() {
     preferences.end();
 
     // Start BLE server and runs all the time for possible settings changes
-    if (hasCredentials) {
-        connectWiFi();
-
-        if (WiFi.localIP().toString() == "0.0.0.0") {
-            initBLE();
-            waitForBluetoothConnection();
-        }
-
-    } else {
-        initBLE();
-        waitForBluetoothConnection();
-    }
+//    if (hasCredentials) {
+//        connectWiFi();
+//
+//        if (WiFi.localIP().toString() == "0.0.0.0") {
+//            initBLE();
+//            waitForBluetoothConnection();
+//        }
+//
+//    } else {
+//        Serial.println("No credentials found, start BLE server");
+//        initBLE();
+//        waitForBluetoothConnection();
+//    }
+    initBLE();
+    //waitForBluetoothConnection();
 }
 
 void waitForBluetoothConnection() {
