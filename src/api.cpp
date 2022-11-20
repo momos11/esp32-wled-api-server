@@ -1,8 +1,6 @@
 #include "api.h"
 #include <Preferences.h>
-#include <Update.h>
 #include <WiFiClientSecure.h>
-#include <HTTPClient.h>
 #include <HTTPUpdate.h>
 #include "cert.h"
 
@@ -15,7 +13,7 @@ enum {
     BRIGHTNESS,
 };
 
-#define URL_fw_Bin "https://github.com/momos11/MLED-Server/releases/download/Alpha/firmware.bin"
+#define URL_fw_Bin "https://raw.githubusercontent.com/momos11/MLED-Server/main/firmware.bin"
 
 
 Api::Api(Led *ledPointer) : server(80) {

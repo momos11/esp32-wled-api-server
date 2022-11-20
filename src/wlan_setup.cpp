@@ -105,9 +105,10 @@ void MyCallbackHandler::onRead(BLECharacteristic *pCharacteristic) {
  * Start BLE server and service advertising
  */
 void initBLE() {
+    //createName();
     // Initialize BLE and set output power
     Serial.println("Initializing BLE...");
-    BLEDevice::init(apName);
+    BLEDevice::init("LED-Strip-1");
     Serial.println("BLE initialized");
     BLEDevice::setPower(ESP_PWR_LVL_P7);
 
@@ -194,11 +195,7 @@ bool connectWiFi() {
 }
 
 void setupWlan() {
-    // Create unique device name
-    createName();
     // Initialize Serial port
-    Serial.begin(115200);
-
     Preferences preferences;
     preferences.begin("WiFiCred", false);
     bool hasPref = preferences.getBool("valid", false);
@@ -218,27 +215,24 @@ void setupWlan() {
     }
     preferences.end();
 
-    // Start BLE server and runs all the time for possible settings changes
-//    if (hasCredentials) {
-//        connectWiFi();
-//
-//        if (WiFi.localIP().toString() == "0.0.0.0") {
-//            initBLE();
-//            waitForBluetoothConnection();
-//        }
-//
-//    } else {
-//        Serial.println("No credentials found, start BLE server");
-//        initBLE();
-//        waitForBluetoothConnection();
-//    }
-    initBLE();
-    //waitForBluetoothConnection();
+     //Start BLE server and runs all the time for possible settings changes
+    if (hasCredentials) {
+        connectWiFi();
+        if (WiFi.localIP().toString() == "0.0.0.0") {
+            //initBLE();
+            waitForBluetoothConnection();
+        }
+
+    } else {
+        Serial.println("No credentials found, start BLE server");
+        //initBLE();
+        waitForBluetoothConnection();
+    }
 }
 
 void waitForBluetoothConnection() {
     connectionFailed:
-    Serial.println("Waiting for Bluetooth input");
+    Serial.println("Waiting for Bluetooth input...");
     while (!isConnected) {
     }
     Serial.println("Connect to WiFi");

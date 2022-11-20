@@ -66,6 +66,7 @@ void WS2812FX::init() {
 // }
 
 bool WS2812FX::service() {
+    Serial.println("service");
     bool doShow = false;
     if (_running || _triggered) {
         unsigned long now = millis(); // Be aware, millis() rolls over every 49 days
@@ -90,6 +91,7 @@ bool WS2812FX::service() {
         }
         _triggered = false;
     }
+    Serial.println("service2");
     return doShow;
 }
 
