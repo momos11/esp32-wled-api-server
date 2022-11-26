@@ -1,7 +1,7 @@
 #include "wlan_setup.h"
 
 /** Unique device name */
-char apName[] = "LED-Strip";
+String bluetoothDeviceName = "LED-Strip-";
 /** Flag if stored AP credentials are available */
 bool hasCredentials = false;
 /** Connection status */
@@ -12,10 +12,11 @@ bool bleIsRunning = false;
 
 String ssid;
 String password;
+String macAddress;
 BLECharacteristic *pCharacteristicWiFi;
-BLEAdvertising *pAdvertising;
-BLEService *pService;
-BLEServer *pServer;
+BLEAdvertising *pBluetoothAdvertising;
+BLEService *pBluetoothService;
+BLEServer *pBluetoothServer;
 StaticJsonDocument<100> jsonBuffer;
 
 
@@ -23,38 +24,35 @@ StaticJsonDocument<100> jsonBuffer;
  * Create unique device name from MAC address
  **/
 void createName() {
-    uint8_t baseMac[6];
     // Get MAC address for WiFi station
-    esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
-    // Write unique name into apName
-    sprintf(apName, "LED-Strip-%02X%02X%02X%02X%02X%02X", baseMac[0], baseMac[1], baseMac[2], baseMac[3], baseMac[4],
-            baseMac[5]);
+    Serial.println("Get MAC address for WiFi station");
+    macAddress = WiFi.macAddress();
+    Serial.println("MAC address for WiFi station received");
+    bluetoothDeviceName = bluetoothDeviceName + macAddress;
 }
 
 /**
- * MyServerCallbacks
+ * BluetoothCallbacks
  * Callbacks for client connection and disconnection
  */
-MyServerCallbacks::MyServerCallbacks() {
-}
+BluetoothCallbacks::BluetoothCallbacks() = default;
 
-void MyServerCallbacks::onConnect(BLEServer *pServer) {
+void BluetoothCallbacks::onConnect(BLEServer *pServer) {
     Serial.println("BLE client connected");
 }
 
-void MyServerCallbacks::onDisconnect(BLEServer *pServer) {
+void BluetoothCallbacks::onDisconnect(BLEServer *pServer) {
     Serial.println("BLE client disconnected");
-    pAdvertising->start();
+    pBluetoothAdvertising->start();
 };
 
 /**
- * MyCallbackHandler
+ * BluetoothCallbackHandler
  * Callbacks for BLE client read/write requests
  */
-MyCallbackHandler::MyCallbackHandler() {
-}
+BluetoothCallbackHandler::BluetoothCallbackHandler() = default;
 
-void MyCallbackHandler::onWrite(BLECharacteristic *pCharacteristic) {
+void BluetoothCallbackHandler::onWrite(BLECharacteristic *pCharacteristic) {
     std::string value = pCharacteristic->getValue();
     if (value.length() == 0) {
         return;
@@ -82,7 +80,7 @@ void MyCallbackHandler::onWrite(BLECharacteristic *pCharacteristic) {
     jsonBuffer.clear();
 }
 
-void MyCallbackHandler::onRead(BLECharacteristic *pCharacteristic) {
+void BluetoothCallbackHandler::onRead(BLECharacteristic *pCharacteristic) {
     Serial.println("BLE onRead request");
     String credentials;
 
@@ -92,10 +90,8 @@ void MyCallbackHandler::onRead(BLECharacteristic *pCharacteristic) {
     jsonOut["password"] = password;
     // Convert JSON object into a string
     serializeJson(jsonOut, credentials);
-
-    String ipAdress = WiFi.localIP().toString();
-    std::string stdSTring = (ipAdress.c_str());
-    pCharacteristicWiFi->setValue(stdSTring);
+    String ipAddress = WiFi.localIP().toString().c_str();
+    pCharacteristicWiFi->setValue(ipAddress.c_str());
     jsonBuffer.clear();
 }
 
@@ -105,43 +101,35 @@ void MyCallbackHandler::onRead(BLECharacteristic *pCharacteristic) {
  * Start BLE server and service advertising
  */
 void initBLE() {
-    //createName();
+    createName();
     // Initialize BLE and set output power
-    Serial.println("Initializing BLE...");
-    BLEDevice::init("LED-Strip-1");
-    Serial.println("BLE initialized");
+    BLEDevice::init((const char *) bluetoothDeviceName.c_str());
     BLEDevice::setPower(ESP_PWR_LVL_P7);
-
     // Create BLE Server
-    pServer = BLEDevice::createServer();
-
+    pBluetoothServer = BLEDevice::createServer();
     // Set server callbacks
-    pServer->setCallbacks(new MyServerCallbacks());
-
+    pBluetoothServer->setCallbacks(new BluetoothCallbacks());
     // Create BLE Service
-    pService = pServer->createService(BLEUUID(SERVICE_UUID));
-
+    pBluetoothService = pBluetoothServer->createService(BLEUUID(SERVICE_UUID));
     // Create BLE Characteristic for WiFi settings
-    pCharacteristicWiFi = pService->createCharacteristic(
+    pCharacteristicWiFi = pBluetoothService->createCharacteristic(
             BLEUUID(WIFI_UUID),
             NIMBLE_PROPERTY::READ |
             NIMBLE_PROPERTY::WRITE |
             NIMBLE_PROPERTY::NOTIFY
     );
-    pCharacteristicWiFi->setCallbacks(new MyCallbackHandler());
-
+    pCharacteristicWiFi->setCallbacks(new BluetoothCallbackHandler());
     pCharacteristicWiFi->addDescriptor(new NimBLE2904());
     // Start the service
-    pService->start();
-
+    pBluetoothService->start();
     // Start advertising
-    pAdvertising = pServer->getAdvertising();
-    pAdvertising->start();
+    pBluetoothAdvertising = pBluetoothServer->getAdvertising();
+    pBluetoothAdvertising->start();
     bleIsRunning = true;
 }
 
 /**
- * Start connection to AP
+ * Start connection to WiFi
  */
 bool connectWiFi() {
     WiFi.disconnect(true);
@@ -215,7 +203,7 @@ void setupWlan() {
     }
     preferences.end();
 
-     //Start BLE server and runs all the time for possible settings changes
+    //Start BLE server and runs all the time for possible settings changes
     if (hasCredentials) {
         connectWiFi();
         if (WiFi.localIP().toString() == "0.0.0.0") {

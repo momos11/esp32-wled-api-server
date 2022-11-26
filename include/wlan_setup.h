@@ -16,22 +16,22 @@
 #include <Preferences.h>
 
 
-class MyServerCallbacks : public BLEServerCallbacks {
+class BluetoothCallbacks : public BLEServerCallbacks {
 public:
-    MyServerCallbacks();
+    BluetoothCallbacks();
 
-    void onConnect(BLEServer *pServer);
+    void onConnect(BLEServer *pServer) override;
 
-    void onDisconnect(BLEServer *pServer);
+    void onDisconnect(BLEServer *pServer) override;
 };
 
-class MyCallbackHandler : public BLECharacteristicCallbacks {
+class BluetoothCallbackHandler : public BLECharacteristicCallbacks {
 public:
-    MyCallbackHandler();
+    BluetoothCallbackHandler();
 
-    void onWrite(BLECharacteristic *pCharacteristic);
+    void onWrite(BLECharacteristic *pCharacteristic) override;
 
-    void onRead(BLECharacteristic *pCharacteristic);
+    void onRead(BLECharacteristic *pCharacteristic) override;
 };
 
 void initBLE();
