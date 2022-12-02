@@ -2,7 +2,7 @@
 #define ESP32_WLED_API_SERVER_API_H
 
 #include "WS2812FX.h"
-#include "ws_led.h"
+#include "led.h"
 #include "WebServer.h"
 #include <ArduinoJson.h>
 

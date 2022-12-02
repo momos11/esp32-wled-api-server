@@ -1,7 +1,7 @@
 #include <Arduino.h>
-#include "wlan_setup.h"
+#include "wlan.h"
 #include "api.h"
-#include "ws_led.h"
+#include "led.h"
 
 #define TIMER_MS 400
 
@@ -12,11 +12,9 @@ Led *ledPointer = &led;
 Api api(ledPointer);
 
 void setup() {
-    //connects to WLAN if credentials are stored
     Serial.begin(115200);
-    initBLE();
-    setupWlan();
-
+    Bluetooth::bluetoothInit();
+    wlanInit();
     pinMode(LEDPIN, OUTPUT);
     digitalWrite(LEDPIN, LOW);
     delay(10);
