@@ -13,11 +13,6 @@ permissions:
   pages: write
   id-token: write
 
-# Allow one concurrent deployment
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
-
 jobs:
   build:
 
@@ -56,6 +51,9 @@ jobs:
         url: ${{ steps.deployment.outputs.page_url }}
       runs-on: ubuntu-latest
       steps:
+      
+        - name: Test
+          run:  ls
         - name: Checkout
           uses: actions/checkout@v3
         - name: Setup Pages
