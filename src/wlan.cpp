@@ -72,8 +72,8 @@ bool Wlan::connectToWiFi() {
 
     String ipAddress = WiFi.localIP().toString();
 
-    Bluetooth::setWifiCharacteristicValue(ipAddress.c_str());
-    Bluetooth::notifyWifiCharacteristic();
+    //Bluetooth::setWifiCharacteristicValue(ipAddress.c_str());
+    //Bluetooth::notifyWifiCharacteristic();
     Serial.println("Notified BLE characteristic");
     return true;
 }
