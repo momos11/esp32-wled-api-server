@@ -2,7 +2,7 @@
 #define ESP32_WLED_API_SERVER_API_H
 
 #include "WS2812FX.h"
-#include "ws_led.h"
+#include "led.h"
 #include "WebServer.h"
 #include <ArduinoJson.h>
 
@@ -50,7 +50,7 @@ public:
 
     static void saveSettings(int key, uint32_t value);
 
-    void setupOTA();
+    static void setupOTA();
 
     void handleReset();
 
