@@ -1,1 +1,3 @@
-esp32-wled-api-server
+# MLED ESP32 Server
+
+LEDPIN 12 = G12 on the ESP32
