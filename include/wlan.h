@@ -12,11 +12,15 @@
 #include <Preferences.h>
 #include "bluetooth.h"
 
-bool connectToWiFi();
+class Wlan {
+public:
+    static bool connectToWiFi();
 
-void wlanInit();
+    static void wlanInit();
 
-void waitForBluetoothConnection();
+    static void waitForBluetoothConnection();
 
+    static bool checkForCredentials();
+};
 
 #endif //ESP32_WLED_API_SERVER_WLAN_H

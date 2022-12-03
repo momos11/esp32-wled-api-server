@@ -50,7 +50,7 @@ public:
 
     static void saveSettings(int key, uint32_t value);
 
-    void setupOTA();
+    static void setupOTA();
 
     void handleReset();
 

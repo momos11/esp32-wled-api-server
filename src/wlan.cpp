@@ -2,9 +2,8 @@
 
 String ssid;
 String password;
-String macAddress;
 
-bool checkForCredentials() {
+bool Wlan::checkForCredentials() {
     Preferences preferences;
     preferences.begin("WiFiCred", false);
     bool hasPreference = preferences.getBool("valid", false);
@@ -26,9 +25,9 @@ bool checkForCredentials() {
     return hasPreference;
 }
 
-void wlanInit() {
+void Wlan::wlanInit() {
     Serial.println("Setup WLAN");
-    if (checkForCredentials()){
+    if (checkForCredentials()) {
         Serial.println("Got credentials from preferences");
         connectToWiFi();
         if (WiFi.localIP().toString() == "0.0.0.0") {
@@ -43,7 +42,7 @@ void wlanInit() {
 /**
  * Start connection to WiFi
  */
-bool connectToWiFi() {
+bool Wlan::connectToWiFi() {
     WiFi.disconnect(true);
     WiFi.enableSTA(true);
     WiFiClass::mode(WIFI_STA);
@@ -79,11 +78,11 @@ bool connectToWiFi() {
     return true;
 }
 
-void waitForBluetoothConnection() {
+void Wlan::waitForBluetoothConnection() {
     Serial.println("Waiting for Bluetooth input...");
     while (!Bluetooth::getDataReceived()) {
         delay(100);
     }
     Serial.println("Got Bluetooth input");
-    connectToWiFi();
+    Wlan::connectToWiFi();
 };

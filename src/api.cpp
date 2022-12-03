@@ -13,7 +13,7 @@ enum {
     BRIGHTNESS,
 };
 
-#define URL_fw_Bin "https://raw.githubusercontent.com/momos11/MLED-Server/main/firmware.bin"
+#define update_firmware_url "https://raw.githubusercontent.com/momos11/MLED-Server/main/firmware.bin"
 
 
 Api::Api(Led *ledPointer) : server(80) {
@@ -280,7 +280,7 @@ void Api::setupOTA() {
     Serial.println("Set CACert");
     client.setCACert(rootCACertificate);
     Serial.println("CACert set");
-    t_httpUpdate_return ret = httpUpdate.update(client, URL_fw_Bin);
+    t_httpUpdate_return ret = httpUpdate.update(client, update_firmware_url);
     Serial.println("Update done");
     switch (ret) {
         case HTTP_UPDATE_FAILED:
