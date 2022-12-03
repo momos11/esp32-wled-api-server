@@ -1,4 +1,6 @@
 .pio
 CMakeListsPrivate.txt
+CMakeLists.txt
+src/CMakeLists.txt
 cmake-build-*/ 
 .idea
