@@ -7,24 +7,27 @@
 
 unsigned long last_change = 0;
 unsigned long now = 0;
-Led *p_led = new Led();
+Led led;
+Led *p_led = &led;
 Api api(p_led);
 
 void setup() {
     Serial.begin(115200);
     Bluetooth::bluetoothInit();
     Wlan::wlanInit();
+    Serial.println("Wlan finished");
     pinMode(LEDPIN, OUTPUT);
     digitalWrite(LEDPIN, LOW);
     delay(10);
-    p_led->startLed();
+    led.startLed();
+    Serial.println("Led done");
     api.startServer();
     Serial.println("Setup done");
 }
 
 void loop() {
     api.serverHandleClient();
-    //p_led.ledService();
+    led.ledService();
     if (millis() - last_change > TIMER_MS) {
         last_change = now;
     }

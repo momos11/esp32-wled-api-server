@@ -74,14 +74,16 @@ bool Wlan::connectToWiFi() {
 
     Bluetooth::setWifiCharacteristicValue(ipAddress.c_str());
     Bluetooth::notifyWifiCharacteristic();
-
+    Serial.println("Notified BLE characteristic");
     return true;
 }
 
 void Wlan::waitForBluetoothConnection() {
     Serial.println("Waiting for Bluetooth input...");
     while (!Bluetooth::getDataReceived()) {
-        delay(100);
+        delay(1000);
+        Serial.println("Waiting for Bluetooth input...");
+        Serial.println(Bluetooth::getDataReceived());
     }
     Serial.println("Got Bluetooth input");
     Wlan::connectToWiFi();

@@ -69,29 +69,48 @@ bool WS2812FX::service() {
     Serial.println("service");
     bool doShow = false;
     if (_running || _triggered) {
+        Serial.println("service1");
         unsigned long now = millis(); // Be aware, millis() rolls over every 49 days
         for (uint8_t i = 0; i < _active_segments_len; i++) {
+            Serial.println("service2");
             if (_active_segments[i] != INACTIVE_SEGMENT) {
+                Serial.println("service3");
                 _seg = &_segments[_active_segments[i]];
+                Serial.println("service4");
                 _seg_len = (uint16_t) (_seg->stop - _seg->start + 1);
+                Serial.println("service5");
                 _seg_rt = &_segment_runtimes[i];
+                Serial.println("service6");
                 CLR_FRAME_CYCLE;
+                Serial.println("service7");
                 if (now > _seg_rt->next_time || _triggered) {
+                    Serial.println("service8");
                     SET_FRAME;
+                    Serial.println("service9");
                     doShow = true;
+                    Serial.println("service10");
                     uint16_t delay = (this->*_modes[_seg->mode])();
+                    Serial.println("service11");
                     _seg_rt->next_time = now + max(delay, SPEED_MIN);
+                    Serial.println("service12");
                     _seg_rt->counter_mode_call++;
+                    Serial.println("service13");
                 }
+                Serial.println("service14");
             }
+            Serial.println("service15");
         }
+        Serial.println("service16");
         if (doShow) {
+            Serial.println("service17");
             delay(1); // for ESP32 (see https://forums.adafruit.com/viewtopic.php?f=47&t=117327)
+            Serial.println("service18");
             show();
+            Serial.println("service19");
         }
         _triggered = false;
     }
-    Serial.println("service2");
+    Serial.println("service20");
     return doShow;
 }
 
